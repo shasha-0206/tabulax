@@ -11,14 +11,19 @@ type SamplesMap = Record<string, string[]>;
 interface SamplesState {
   source: SamplesMap;
   target: SamplesMap;
+  input: SamplesMap; 
 }
 
 const DemoPage = () => {
   const [sourceColumns, setSourceColumns] = useState<string[]>([]);
   const [targetColumns, setTargetColumns] = useState<string[]>([]);
-  const [samples, setSamples] = useState<SamplesState>({ source: {}, target: {} });
+  const [inputColumns, setInputColumns] = useState<string[]>([]); // for input file
+
+  const [samples, setSamples] = useState<SamplesState>({ source: {}, target: {}, input: {} });
   const [selectedSourceColumn, setSelectedSourceColumn] = useState<string>('');
   const [selectedTargetColumn, setSelectedTargetColumn] = useState<string>('');
+  const [selectedInputColumn, setSelectedInputColumn] = useState<string>(''); // new
+
   const [code, setCode] = useState<string>('');
 
   return (
@@ -27,15 +32,14 @@ const DemoPage = () => {
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold mb-4">TabulaX - Data Transformation</h1>
           <p className="text-slate-600 max-w-3xl mx-auto">
-            Upload your source and target samples and write transformation logic to test.
+            Upload your source, target, and transformation input files. Write your logic and test!
           </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8 p-6 space-y-6">
 
-         {/* Source and Target Uploaders Side-by-Side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Source Upload */}
+          {/* Uploaders for Source, Target, and Input */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-4 border rounded-lg bg-slate-50">
               <FileUploader
                 type="source"
@@ -43,65 +47,72 @@ const DemoPage = () => {
                 setSamples={setSamples}
               />
             </div>
-
-          {/* Target Upload */}
-          <div className="p-4 border rounded-lg bg-slate-50">
-            <FileUploader
-              type="target"
-              setColumns={setTargetColumns}
-              setSamples={setSamples}
-            />
-          </div>
-        </div>
-
-
-      {(sourceColumns.length > 0 || targetColumns.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-           {/* Source Selector on left */}
-           {sourceColumns.length > 0 && (
-            <ColumnSelector
-              columns={sourceColumns}
-              onSelect={setSelectedSourceColumn}
-              label="Select Source Column"
-            />
-          )}
-          
-          {/* Target Selector on right */}
-          {targetColumns.length > 0 && (
-            <ColumnSelector
-              columns={targetColumns}
-              onSelect={setSelectedTargetColumn}
-              label="Select Target Column"
-            />
-          )}
-
-         
-        </div>
-      )}
-
-
-        {(selectedSourceColumn || selectedTargetColumn) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             {/* Source Samples on left */}
-             {selectedSourceColumn && samples.source?.[selectedSourceColumn]?.length > 0 && (
-              <SamplePreview
-                samples={samples.source[selectedSourceColumn]}
-                title="Source Samples"
+            <div className="p-4 border rounded-lg bg-slate-50">
+              <FileUploader
+                type="target"
+                setColumns={setTargetColumns}
+                setSamples={setSamples}
               />
-            )}
-
-            {/* Target Samples on right */}
-            {selectedTargetColumn && samples.target?.[selectedTargetColumn]?.length > 0 && (
-              <SamplePreview
-                samples={samples.target[selectedTargetColumn]}
-                title="Target Samples"
+            </div>
+            <div className="p-4 border rounded-lg bg-slate-50">
+              <FileUploader
+                type="input"
+                setColumns={setInputColumns}
+                setSamples={setSamples}
               />
-            )}
-        
-           
+            </div>
           </div>
-        )}
-        
+
+          {/* Column selectors */}
+          {(sourceColumns.length > 0 || targetColumns.length > 0 || inputColumns.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {sourceColumns.length > 0 && (
+                <ColumnSelector
+                  columns={sourceColumns}
+                  onSelect={setSelectedSourceColumn}
+                  label="Select Source Column"
+                />
+              )}
+              {targetColumns.length > 0 && (
+                <ColumnSelector
+                  columns={targetColumns}
+                  onSelect={setSelectedTargetColumn}
+                  label="Select Target Column"
+                />
+              )}
+              {inputColumns.length > 0 && (
+                <ColumnSelector
+                  columns={inputColumns}
+                  onSelect={setSelectedInputColumn}
+                  label="Select Input Column"
+                />
+              )}
+            </div>
+          )}
+
+          {/* Previews */}
+          {(selectedSourceColumn || selectedTargetColumn || selectedInputColumn) && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {selectedSourceColumn && samples.source?.[selectedSourceColumn]?.length > 0 && (
+                <SamplePreview
+                  samples={samples.source[selectedSourceColumn]}
+                  title="Source Samples"
+                />
+              )}
+              {selectedTargetColumn && samples.target?.[selectedTargetColumn]?.length > 0 && (
+                <SamplePreview
+                  samples={samples.target[selectedTargetColumn]}
+                  title="Target Samples"
+                />
+              )}
+              {selectedInputColumn && samples.input?.[selectedInputColumn]?.length > 0 && (
+                <SamplePreview
+                  samples={samples.input[selectedInputColumn]}
+                  title="Input Samples"
+                />
+              )}
+            </div>
+          )}
 
           {/* Transformation Box */}
           {selectedSourceColumn &&
@@ -116,8 +127,8 @@ const DemoPage = () => {
               />
             )}
 
-          {/* Test Function */}
-          {selectedSourceColumn && samples.source?.[selectedSourceColumn]?.length > 0 && (
+           {/* Test Function */}
+           {selectedSourceColumn && samples.source?.[selectedSourceColumn]?.length > 0 && (
             <TestFunctionBox
             code={code}
             sampleInput={samples.source?.[selectedSourceColumn]?.[0] || ''}
@@ -129,11 +140,11 @@ const DemoPage = () => {
           {/* Confirm Apply */}
           {selectedSourceColumn && code && (
             
-            <ConfirmApply column={selectedSourceColumn} code={code} />
+            <ConfirmApply column={selectedInputColumn} code={code} />
           )}
         </div>
 
-        {/* Instructions Box */}
+        {/* Instructions */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <div className="flex items-start">
             <div className="text-blue-500 mr-4 mt-1">
@@ -145,9 +156,10 @@ const DemoPage = () => {
               <h3 className="text-lg font-semibold mb-2">How to use this demo</h3>
               <ol className="list-decimal space-y-2 pl-5 text-slate-700">
                 <li>Upload your source and target samples</li>
-                <li>Select one column each from source and target</li>
+                <li>Upload the file you want to transform</li>
+                <li>Select one column each from all three files</li>
                 <li>Write transformation code to convert source to target</li>
-                <li>Test your function on one sample</li>
+                <li>Test your code on the input file</li>
                 <li>Apply and finalize the transformation</li>
               </ol>
             </div>

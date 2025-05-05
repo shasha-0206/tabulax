@@ -1,11 +1,12 @@
 import React from "react";
 
+type FileType = "source" | "target" | "input";
 type SamplesMap = { [key: string]: string[] };
 
 interface FileUploaderProps {
-  type: "source" | "target";
+  type: FileType;
   setColumns: (columns: string[]) => void;
-  setSamples: React.Dispatch<React.SetStateAction<{ source: SamplesMap; target: SamplesMap }>>;
+  setSamples: React.Dispatch<React.SetStateAction<{ source: SamplesMap; target: SamplesMap; input: SamplesMap }>>;
 }
 
 const FileUploader: React.FC<FileUploaderProps> = ({ type, setColumns, setSamples }) => {
@@ -18,29 +19,24 @@ const FileUploader: React.FC<FileUploaderProps> = ({ type, setColumns, setSample
     formData.append("fileType", type);
 
     try {
-      const response = await fetch(
-        type === "source"
-          ? "http://localhost:5000/upload-source"
-          : "http://localhost:5000/upload-target",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const response = await fetch(`http://localhost:5000/upload-${type}`, {
+        method: "POST",
+        body: formData,
+      });
 
       const data = await response.json();
 
       setColumns(data.columns);
       setSamples((prev) => ({ ...prev, [type]: data.samples }));
     } catch (error) {
-      console.error("Error uploading file:", error);
+      console.error(`Error uploading ${type} file:`, error);
     }
   };
 
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Upload {type === "source" ? "Source" : "Target"} File
+        Upload {type.charAt(0).toUpperCase() + type.slice(1)} File
       </label>
       <input
         type="file"

@@ -58,6 +58,7 @@ function extractFunctionName(code) {
 // 🔹 In-memory storage for uploaded data (temporary, session-based)
 let uploadedSourceData = null;
 let uploadedTargetData = null;
+let InputData = null;
 
 // 🔹 Routes
 
@@ -147,6 +148,49 @@ app.post("/upload-target", upload.single("file"), (req, res) => {
     }
 });
 
+// Handle input file upload (from second file)
+app.post("/upload-input", upload.single("file"), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const { fileType } = req.body;
+    const filePath = req.file.path;
+    const fileExt = req.file.originalname.split(".").pop().toLowerCase();
+
+    try {
+        let columns = [];
+        let rawData = [];
+
+        if (fileExt === "csv") {
+            const fileContent = fs.readFileSync(filePath, "utf8");
+            const parsed = Papa.parse(fileContent, { header: true });
+            columns = parsed.meta.fields;
+            rawData = parsed.data;
+        } else if (fileExt === "xlsx") {
+            const workbook = xlsx.readFile(filePath);
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+
+            columns = jsonData[0];
+            rawData = jsonData.slice(1).map((row) => {
+                let obj = {};
+                columns.forEach((col, idx) => (obj[col] = row[idx]));
+                return obj;
+            });
+        } else {
+            return res.status(400).json({ error: "Unsupported file format" });
+        }
+
+        // Store uploaded data in memory
+        InputData = { columns, rawData };
+        const samples = convertToColumnFormat(rawData.slice(0, 5), columns);
+        fs.unlinkSync(filePath); // Clean up uploaded file
+        res.json({ columns, samples });
+    } catch (error) {
+        console.error("Error processing file:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
 // Handle function generation based on source and target values (from second file)
 app.post("/generate-function", async (req, res) => {
     try {
@@ -164,28 +208,28 @@ app.post("/generate-function", async (req, res) => {
         };
 
         // Call the classify API to get the transformation type and generated function code
-        // const response = await axios.post("https://78f5-34-16-146-89.ngrok-free.app/classify", requestData);
+        const response = await axios.post("http://af2e-34-169-236-30.ngrok-free.app/classify", requestData);
 
         // Extract the transformation type and function code from the response
-        // const { transformation_type, function_code } = response.data;
+        const { transformation_type, function_code } = response.data;
 
         // Log the response for debugging
-        // console.log(`Transformation Type: ${transformation_type}`);
-        // console.log(`Generated Function Code: \n${function_code}`);
+        console.log(`Transformation Type: ${transformation_type}`);
+        console.log(`Generated Function Code: \n${function_code}`);
 
         // Send the transformation type and function code back to the client
 
-        const test = [
-            "def transform(input_str):",
-            "   num = int(input_str)",
-            "   output = round((num - 32) * 5 / 9, 2)",
-            "   return output",
-          ].join("\n");
+        // const test = [
+        //     "def transform(input_str):",
+        //     "   num = int(input_str)",
+        //     "   output = round((num - 32) * 5 / 9, 2)",
+        //     "   return output",
+        //   ].join("\n");
           
 
         
         res.json({
-            pythonFunction: test,
+            pythonFunction: function_code,
         });
 
     } catch (error) {
@@ -270,15 +314,16 @@ print(json.dumps(output))
 app.post("/apply_transformation", (req, res) => {
     try {
       const { column_name, code } = req.body;
+      console.log(column_name)
       if (!column_name || !code) {
         return res.status(400).json({ error: "Column name and transformation code are required" });
       }
   
-      if (!uploadedSourceData || !uploadedSourceData.rawData) {
+      if (!InputData || !InputData.rawData) {
         return res.status(400).json({ error: "No uploaded data available" });
       }
   
-      const columnData = uploadedSourceData.rawData.map((row) => row[column_name]);
+      const columnData = InputData.rawData.map((row) => row[column_name]);
       const sanitizedData = columnData.map((item) => {
         const value = String(item).trim();
         return value === "" ? "None" : `"${value}"`;
@@ -294,14 +339,18 @@ app.post("/apply_transformation", (req, res) => {
       const wrappedCode = `
 import json
 import numpy as np
-  
+
 ${code}
-  
+
 inputs = [${sanitizedData.join(", ")}]
 results = []
-  
+
 for val in inputs:
     try:
+        if val is None or val == "None":
+            results.append("None")  # Or use "Skipped" if you prefer
+            continue
+
         out = ${functionName}(val)
         if isinstance(out, float) and np.isnan(out):
             results.append("NaN")
@@ -309,8 +358,10 @@ for val in inputs:
             results.append(str(out))
     except Exception as e:
         results.append(f"Error: {e}")
-  
-print(json.dumps(results))`.trim();
+
+print(json.dumps(results))
+`.trim();
+
   
       const pythonProcess = spawn("python", ["-c", wrappedCode]);
   
@@ -326,11 +377,14 @@ print(json.dumps(results))`.trim();
       });
   
       pythonProcess.on("close", () => {
-        if (errorOutput) return res.status(500).json({ error: errorOutput.trim() });
+        if (errorOutput && !errorOutput.includes("'NoneType' object has no attribute 'split'")) {
+            return res.status(500).json({ error: errorOutput.trim() });
+          }
+          
   
         try {
           const transformedValues = JSON.parse(output.trim());
-          const updatedRows = uploadedSourceData.rawData.map((row, index) => ({
+          const updatedRows = InputData.rawData.map((row, index) => ({
             ...row,
             [`${column_name}_transformed`]: transformedValues[index],
           }));

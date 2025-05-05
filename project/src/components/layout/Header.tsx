@@ -10,6 +10,11 @@ const Header = () => {
   const location = useLocation();
 
   const toggleMenu = () => setIsOpen(!isOpen);
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
+  };
+  
 
   useEffect(() => {
     const handleScroll = () => {
@@ -87,8 +92,14 @@ const Header = () => {
                 <Link to="/signup" className="btn btn-link ml-1">Sign Up</Link>
               </>
             ) : (
-              <div className="ml-4">
+              <div className="ml-4 flex items-center space-x-3">
                 <UserCircle2 className="text-blue-600" size={32} />
+                  <button
+                    onClick={handleLogout}
+                    className="btn btn-outline px-3 py-1 text-sm"
+                  >
+                    Logout
+                  </button>
               </div>
             )}
           </nav>
