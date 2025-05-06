@@ -17,13 +17,15 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
     const [copied, setCopied] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editableCode, setEditableCode] = useState(code);
-    const [functionType, setFunctionType] = useState<string | null>(null); // New state for function type
+    const [functionType, setFunctionType] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false); // <-- NEW STATE
 
     useEffect(() => {
         if (!samples.length || !targetValues.length) return;
 
         const fetchFunction = async () => {
             try {
+                setLoading(true); // Start loading
                 const response = await fetch("http://localhost:5000/generate-function", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -32,10 +34,12 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
 
                 const data: { pythonFunction?: string; type?: string; error?: string } = await response.json();
                 setCode(data.pythonFunction || "Failed to generate function");
-                setFunctionType(data.type || null); // Store the type
+                setFunctionType(data.type || null);
             } catch (error) {
                 console.error("Error fetching function:", error);
                 setCode("Error fetching function");
+            } finally {
+                setLoading(false); // End loading
             }
         };
 
@@ -80,8 +84,12 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
                     rows={6}
                 />
             ) : (
-                <pre className="bg-gray-100 text-gray-900 rounded-xl p-4 overflow-x-auto text-sm font-mono relative border border-gray-300">
-                    {code || "No code generated yet."}
+                <pre className="bg-gray-100 text-gray-900 rounded-xl p-4 overflow-x-auto text-sm font-mono relative border border-gray-300 min-h-[120px]">
+                    {loading ? (
+                        <span className="text-blue-500 animate-pulse">⏳ Generating code...</span>
+                    ) : (
+                        code || "No code generated yet."
+                    )}
                 </pre>
             )}
 

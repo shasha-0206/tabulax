@@ -208,7 +208,7 @@ app.post("/generate-function", async (req, res) => {
         };
 
         // Call the classify API to get the transformation type and generated function code
-        const response = await axios.post("http://095d-34-16-244-162.ngrok-free.app/classify", requestData);
+        const response = await axios.post("http://27a8-34-142-160-6.ngrok-free.app/classify", requestData);
 
         // Extract the transformation type and function code from the response
         const { transformation_type, function_code } = response.data;
