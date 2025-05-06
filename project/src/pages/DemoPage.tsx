@@ -32,14 +32,14 @@ const DemoPage = () => {
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold mb-4">TabulaX - Data Transformation</h1>
           <p className="text-slate-600 max-w-3xl mx-auto">
-            Upload your source, target, and transformation input files. Write your logic and test!
+            Upload your source and target files. Write your logic. Then test it on an input!
           </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8 p-6 space-y-6">
 
-          {/* Uploaders for Source, Target, and Input */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* === File Uploaders: SOURCE + TARGET === */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="p-4 border rounded-lg bg-slate-50">
               <FileUploader
                 type="source"
@@ -54,18 +54,11 @@ const DemoPage = () => {
                 setSamples={setSamples}
               />
             </div>
-            <div className="p-4 border rounded-lg bg-slate-50">
-              <FileUploader
-                type="input"
-                setColumns={setInputColumns}
-                setSamples={setSamples}
-              />
-            </div>
           </div>
 
-          {/* Column selectors */}
-          {(sourceColumns.length > 0 || targetColumns.length > 0 || inputColumns.length > 0) && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Column Selectors for Source & Target */}
+          {(sourceColumns.length > 0 || targetColumns.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {sourceColumns.length > 0 && (
                 <ColumnSelector
                   columns={sourceColumns}
@@ -80,19 +73,12 @@ const DemoPage = () => {
                   label="Select Target Column"
                 />
               )}
-              {inputColumns.length > 0 && (
-                <ColumnSelector
-                  columns={inputColumns}
-                  onSelect={setSelectedInputColumn}
-                  label="Select Input Column"
-                />
-              )}
             </div>
           )}
 
-          {/* Previews */}
-          {(selectedSourceColumn || selectedTargetColumn || selectedInputColumn) && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Source & Target Preview */}
+          {(selectedSourceColumn || selectedTargetColumn) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {selectedSourceColumn && samples.source?.[selectedSourceColumn]?.length > 0 && (
                 <SamplePreview
                   samples={samples.source[selectedSourceColumn]}
@@ -105,16 +91,10 @@ const DemoPage = () => {
                   title="Target Samples"
                 />
               )}
-              {selectedInputColumn && samples.input?.[selectedInputColumn]?.length > 0 && (
-                <SamplePreview
-                  samples={samples.input[selectedInputColumn]}
-                  title="Input Samples"
-                />
-              )}
             </div>
           )}
 
-          {/* Transformation Box */}
+          {/* Transformation Code Box */}
           {selectedSourceColumn &&
             selectedTargetColumn &&
             samples.source?.[selectedSourceColumn]?.length > 0 &&
@@ -125,22 +105,50 @@ const DemoPage = () => {
                 code={code}
                 setCode={setCode}
               />
-            )}
-
-           {/* Test Function */}
-           {selectedSourceColumn && samples.source?.[selectedSourceColumn]?.length > 0 && (
-            <TestFunctionBox
-            code={code}
-            sampleInput={samples.source?.[selectedSourceColumn]?.[0] || ''}
-          />
-          
-
           )}
 
-          {/* Confirm Apply */}
-          {selectedSourceColumn && code && (
-            
-            <ConfirmApply column={selectedInputColumn} code={code} />
+          {/* === Show INPUT Section ONLY AFTER CODE is written === */}
+          {code && (
+            <>
+              {/* Test Function */}
+              {selectedSourceColumn && samples.source?.[selectedSourceColumn]?.length > 0 && (
+                <TestFunctionBox
+                  code={code}
+                  sampleInput={samples.source[selectedSourceColumn][0]}
+                />
+              )}
+
+               {/* Input File Uploader */}
+               <div className="p-4 border rounded-lg bg-slate-50">
+                <FileUploader
+                  type="input"
+                  setColumns={setInputColumns}
+                  setSamples={setSamples}
+                />
+              </div>
+
+              {/* Input Column Selector */}
+              {inputColumns.length > 0 && (
+                <ColumnSelector
+                  columns={inputColumns}
+                  onSelect={setSelectedInputColumn}
+                  label="Select Input Column"
+                />
+              )}
+
+              {/* Input Preview */}
+              {selectedInputColumn && samples.input?.[selectedInputColumn]?.length > 0 && (
+                <SamplePreview
+                  samples={samples.input[selectedInputColumn]}
+                  title="Input Samples"
+                />
+              )}
+              
+              {/* Confirm Apply */}
+              {selectedInputColumn && code && (
+                <ConfirmApply column={selectedInputColumn} code={code} />
+              )}
+            </>
           )}
         </div>
 
@@ -156,11 +164,11 @@ const DemoPage = () => {
               <h3 className="text-lg font-semibold mb-2">How to use this demo</h3>
               <ol className="list-decimal space-y-2 pl-5 text-slate-700">
                 <li>Upload your source and target samples</li>
+                <li>Select one column each from source and target</li>
+                <li>Write transformation code</li>
                 <li>Upload the file you want to transform</li>
-                <li>Select one column each from all three files</li>
-                <li>Write transformation code to convert source to target</li>
-                <li>Test your code on the input file</li>
-                <li>Apply and finalize the transformation</li>
+                <li>Select input column</li>
+                <li>Test and apply the transformation</li>
               </ol>
             </div>
           </div>

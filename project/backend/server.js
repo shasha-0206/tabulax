@@ -208,7 +208,7 @@ app.post("/generate-function", async (req, res) => {
         };
 
         // Call the classify API to get the transformation type and generated function code
-        const response = await axios.post("http://af2e-34-169-236-30.ngrok-free.app/classify", requestData);
+        const response = await axios.post("http://095d-34-16-244-162.ngrok-free.app/classify", requestData);
 
         // Extract the transformation type and function code from the response
         const { transformation_type, function_code } = response.data;
@@ -230,6 +230,7 @@ app.post("/generate-function", async (req, res) => {
         
         res.json({
             pythonFunction: function_code,
+            type : transformation_type,
         });
 
     } catch (error) {
@@ -326,7 +327,7 @@ app.post("/apply_transformation", (req, res) => {
       const columnData = InputData.rawData.map((row) => row[column_name]);
       const sanitizedData = columnData.map((item) => {
         const value = String(item).trim();
-        return value === "" ? "None" : `"${value}"`;
+        return value === "" ? null : `"${value}"`;
       });
       
   

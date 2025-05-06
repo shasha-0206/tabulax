@@ -40,17 +40,6 @@ const FeaturesPage = () => {
       ]
     },
     {
-      icon: <BarChart2 className="text-emerald-600" size={32} />,
-      title: "Interactive Dashboard",
-      description: "Visualize your data before and after transformation with powerful filtering and sorting tools.",
-      details: [
-        "Real-time data visualization",
-        "Advanced filtering and sorting",
-        "Custom views and layouts",
-        "Data validation indicators"
-      ]
-    },
-    {
       icon: <Code className="text-amber-600" size={32} />,
       title: "Transparent Transformation Logic",
       description: "See exactly how your data is being transformed with human-readable code that you can modify.",
@@ -73,17 +62,6 @@ const FeaturesPage = () => {
       ]
     },
     {
-      icon: <Database className="text-indigo-600" size={32} />,
-      title: "Enterprise Data Integration",
-      description: "Connect TabulaX to your existing data infrastructure with our comprehensive API and connectors.",
-      details: [
-        "Secure API for enterprise integration",
-        "Custom connectors for major platforms",
-        "Scheduled transformation jobs",
-        "Batch processing capabilities"
-      ]
-    },
-    {
       icon: <Lock className="text-slate-700" size={32} />,
       title: "Advanced Security",
       description: "Enterprise-grade security with encryption, access controls, and compliance features.",
@@ -94,17 +72,7 @@ const FeaturesPage = () => {
         "Data residency options"
       ]
     },
-    {
-      icon: <LineChart className="text-teal-600" size={32} />,
-      title: "Performance Analytics",
-      description: "Track and optimize your data transformation processes with detailed analytics.",
-      details: [
-        "Transformation performance metrics",
-        "Usage statistics and trends",
-        "Cost optimization insights",
-        "Bottleneck identification"
-      ]
-    }
+    
   ];
 
   const useCases = [

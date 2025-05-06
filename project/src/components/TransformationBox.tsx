@@ -15,8 +15,9 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
     setCode,
 }) => {
     const [copied, setCopied] = useState(false);
-    const [isEditing, setIsEditing] = useState(false); // New state for editing mode
-    const [editableCode, setEditableCode] = useState(code); // State for editable code
+    const [isEditing, setIsEditing] = useState(false);
+    const [editableCode, setEditableCode] = useState(code);
+    const [functionType, setFunctionType] = useState<string | null>(null); // New state for function type
 
     useEffect(() => {
         if (!samples.length || !targetValues.length) return;
@@ -29,8 +30,9 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
                     body: JSON.stringify({ source_values: samples, target_values: targetValues }),
                 });
 
-                const data: { pythonFunction?: string; error?: string } = await response.json();
+                const data: { pythonFunction?: string; type?: string; error?: string } = await response.json();
                 setCode(data.pythonFunction || "Failed to generate function");
+                setFunctionType(data.type || null); // Store the type
             } catch (error) {
                 console.error("Error fetching function:", error);
                 setCode("Error fetching function");
@@ -49,13 +51,11 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
 
     const handleEditToggle = () => {
         if (isEditing) {
-            // Save code when toggling off edit mode
             setCode(editableCode);
         } else {
-            // Keep editableCode unchanged when toggling to edit mode
             setEditableCode(code);
         }
-        setIsEditing(!isEditing); // Toggle the editing state
+        setIsEditing(!isEditing);
     };
 
     const handleEditableCodeChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -66,7 +66,12 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
         <div className="bg-white text-gray-900 p-4 rounded-2xl relative mt-6 shadow-[0px_4px_6px_rgba(0,0,0,0.1),0px_-4px_6px_rgba(0,0,0,0.1),4px_0px_6px_rgba(0,0,0,0.1),-4px_0px_6px_rgba(0,0,0,0.1)]">
             <h3 className="text-lg font-semibold mb-2 text-teal-500">Generated Transformation Code:</h3>
 
-            {/* If editing, show a textarea for editing code, otherwise show the code in a pre block */}
+            {functionType && (
+                <p className="text-sm text-purple-600 mb-2 font-medium">
+                    Function Type: <span className="font-mono">{functionType}</span>
+                </p>
+            )}
+
             {isEditing ? (
                 <textarea
                     value={editableCode}
@@ -81,7 +86,6 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
             )}
 
             <div className="absolute top-4 right-4 flex gap-3 items-center">
-                {/* Edit Button */}
                 <button
                     onClick={handleEditToggle}
                     className="bg-blue-500 hover:bg-blue-400 text-white px-3 py-1 rounded-lg text-xs flex items-center gap-1 transition"
@@ -90,7 +94,6 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
                     {isEditing ? "Save" : "Edit"}
                 </button>
 
-                {/* Copy Button */}
                 <button
                     onClick={handleCopy}
                     className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-3 py-1 rounded-lg text-xs flex items-center gap-1 transition"
