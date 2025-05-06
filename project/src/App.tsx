@@ -9,7 +9,7 @@ import Footer from './components/layout/Footer';
 import Oauthsuc from './pages/Oauthsuc';
 import SignInPage from './pages/SignInPage';
 import SignUpPage from './pages/SignUpPage';
-
+import Profile from './components/Profile';
 function App() {
   return (
     <Router>
@@ -18,6 +18,7 @@ function App() {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/oauthsuccess" element ={<Oauthsuc/>} />
             <Route path="/demo" element={<DemoPage />} />
             <Route path="/about" element={<AboutPage />} />

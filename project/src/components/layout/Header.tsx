@@ -1,7 +1,7 @@
-import  { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Database, UserCircle2 } from 'lucide-react';
-import {jwtDecode} from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,12 +10,6 @@ const Header = () => {
   const location = useLocation();
 
   const toggleMenu = () => setIsOpen(!isOpen);
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsLoggedIn(false);
-  };
-  
-
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -24,7 +18,6 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Check if user is logged in (JWT exists and is valid)
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -46,7 +39,7 @@ const Header = () => {
   }, [location]);
 
   useEffect(() => {
-    setIsOpen(false); // Close menu on route change
+    setIsOpen(false);
   }, [location]);
 
   const navItems = [
@@ -93,13 +86,10 @@ const Header = () => {
               </>
             ) : (
               <div className="ml-4 flex items-center space-x-3">
-                <UserCircle2 className="text-blue-600" size={32} />
-                  <button
-                    onClick={handleLogout}
-                    className="btn btn-outline px-3 py-1 text-sm"
-                  >
-                    Logout
-                  </button>
+                <Link to="/profile">
+                  <UserCircle2 className="text-blue-600 cursor-pointer" size={32} />
+                </Link>
+                
               </div>
             )}
           </nav>
@@ -137,8 +127,10 @@ const Header = () => {
                   <Link to="/signup" className="btn btn-link text-center mt-1">Sign Up</Link>
                 </>
               ) : (
-                <div className="flex justify-center mt-3">
-                  <UserCircle2 className="text-blue-600" size={32} />
+                <div className="flex justify-center mt-3 space-x-3">
+                  <Link to="/profile">
+                    <UserCircle2 className="text-blue-600 cursor-pointer" size={32} />
+                  </Link>
                 </div>
               )}
             </nav>
