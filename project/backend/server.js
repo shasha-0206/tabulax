@@ -397,6 +397,112 @@ print(json.dumps(results))
   }
 });
 
+app.post("/test_function", async (req, res) => {
+  try {
+    const { code, test_inputs } = req.body;
+
+    if (!code || !Array.isArray(test_inputs)) {
+      return res.status(400).json({ error: "Function code and test_inputs array are required" });
+    }
+
+    const functionName = extractFunctionName(code);
+    if (!functionName) {
+      return res.status(400).json({ error: "Could not extract function name from code" });
+    }
+
+    const sanitizedInputs = test_inputs.map(item => {
+      if (item === null || item === undefined || String(item).trim() === "") {
+        return "None";
+      }
+      const isNumeric = !isNaN(item);
+      return isNumeric ? item : `"${String(item).trim()}"`;
+    });
+
+    const wrappedCode = `
+import json
+import numpy as np
+
+${code}
+
+inputs = [${sanitizedInputs.join(", ")}]
+results = []
+
+for val in inputs:
+    try:
+        if val is None or val == "None":
+            results.append("None")
+            continue
+        out = ${functionName}(val)
+        if isinstance(out, float) and np.isnan(out):
+            results.append("NaN")
+        else:
+            results.append(str(out))
+    except Exception as e:
+        results.append(f"Error: {e}")
+
+print(json.dumps(results))
+`.trim();
+
+    const pythonProcess = spawn("python", ["-c", wrappedCode]);
+
+    let output = "";
+    let errorOutput = "";
+
+    pythonProcess.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    pythonProcess.stderr.on("data", (data) => {
+      errorOutput += data.toString();
+    });
+
+    pythonProcess.on("close", () => {
+      if (errorOutput) {
+        return res.status(500).json({ error: errorOutput.trim() });
+      }
+
+      try {
+        const testResults = JSON.parse(output.trim());
+        res.json({ test_results: testResults });
+      } catch (err) {
+        res.status(500).json({ error: "Failed to parse test results" });
+      }
+    });
+
+  } catch (err) {
+    console.error("Error testing function:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+// 🔹 Test function on one value (from second file)
+app.post("/test_function", (req, res) => {
+    try {
+        const { code, sample } = req.body;
+
+        if (code == null || sample == null) {
+            return res.status(400).json({ error: "Code and sample value are required" });
+        }
+
+        const functionName = extractFunctionName(code);
+        if (!functionName) {
+            return res.status(400).json({ error: "Could not extract function name" });
+        }
+
+        const isNumerical = !isNaN(sample);
+        const sanitizedSample = isNumerical ? parseFloat(sample) : `"${String(sample)}"`;
+
+        // Evaluate the function code
+        eval(code); // Be very cautious with this in real environments
+
+        // Call the function with the sample value
+        const result = eval(`${functionName}(${sanitizedSample})`);
+
+        return res.json({ result });
+    } catch (err) {
+        console.error("Function execution error:", err.message);
+        return res.status(500).json({ error: "Function execution failed", details: err.message });
+    }
+});
 
 // 🔹 Start Server
 const PORT = process.env.PORT || 5000;
