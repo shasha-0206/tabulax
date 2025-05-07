@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { ClipboardIcon, CheckIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface TransformationBoxProps {
     samples?: string[];
     targetValues?: string[];
     code: string;
     setCode: (code: string) => void;
+    onTransformationTypeChange?: (type: string) => void;
 }
 
 const TransformationBox: React.FC<TransformationBoxProps> = ({
@@ -13,38 +16,43 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
     targetValues = [],
     code,
     setCode,
+    onTransformationTypeChange,
 }) => {
     const [copied, setCopied] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editableCode, setEditableCode] = useState(code);
     const [functionType, setFunctionType] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false); // <-- NEW STATE
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (!samples.length || !targetValues.length) return;
 
         const fetchFunction = async () => {
             try {
-                setLoading(true); // Start loading
+                setLoading(true);
                 const response = await fetch("http://localhost:5000/generate-function", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ source_values: samples, target_values: targetValues }),
                 });
 
-                const data: { pythonFunction?: string; type?: string; error?: string } = await response.json();
+                const data = await response.json();
                 setCode(data.pythonFunction || "Failed to generate function");
-                setFunctionType(data.type || null);
+                const transformationType = data.type || null;
+                setFunctionType(transformationType);
+                if (onTransformationTypeChange && transformationType) {
+                    onTransformationTypeChange(transformationType);
+                }
             } catch (error) {
                 console.error("Error fetching function:", error);
                 setCode("Error fetching function");
             } finally {
-                setLoading(false); // End loading
+                setLoading(false);
             }
         };
 
         fetchFunction();
-    }, [samples, targetValues, setCode]);
+    }, [samples, targetValues, setCode, onTransformationTypeChange]);
 
     const handleCopy = async () => {
         if (!code) return;
@@ -62,17 +70,44 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
         setIsEditing(!isEditing);
     };
 
-    const handleEditableCodeChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setEditableCode(event.target.value);
+    const handleEditableCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setEditableCode(e.target.value);
     };
 
     return (
-        <div className="bg-white text-gray-900 p-4 rounded-2xl relative mt-6 shadow-[0px_4px_6px_rgba(0,0,0,0.1),0px_-4px_6px_rgba(0,0,0,0.1),4px_0px_6px_rgba(0,0,0,0.1),-4px_0px_6px_rgba(0,0,0,0.1)]">
-            <h3 className="text-lg font-semibold mb-2 text-teal-500">Generated Transformation Code:</h3>
+        <div className="bg-[#1e1e1e] text-white rounded-xl p-6 shadow-2xl mt-6 space-y-4 font-mono">
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-teal-400">🧠 Python Transformation Editor</h3>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleEditToggle}
+                        className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                    >
+                        <PencilIcon className="w-4 h-4" />
+                        {isEditing ? "Save" : "Edit"}
+                    </button>
+                    <button
+                        onClick={handleCopy}
+                        className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                    >
+                        {copied ? (
+                            <>
+                                <CheckIcon className="w-4 h-4 text-green-400" />
+                                Copied
+                            </>
+                        ) : (
+                            <>
+                                <ClipboardIcon className="w-4 h-4" />
+                                Copy
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
 
             {functionType && (
-                <p className="text-sm text-purple-600 mb-2 font-medium">
-                    Function Type: <span className="font-mono">{functionType}</span>
+                <p className="text-sm text-purple-300">
+                    Function Type: <span className="bg-purple-800 px-2 py-1 rounded">{functionType}</span>
                 </p>
             )}
 
@@ -80,45 +115,21 @@ const TransformationBox: React.FC<TransformationBoxProps> = ({
                 <textarea
                     value={editableCode}
                     onChange={handleEditableCodeChange}
-                    className="bg-gray-100 text-gray-900 rounded-xl p-4 overflow-x-auto text-sm font-mono w-full border border-gray-300"
-                    rows={6}
+                    rows={12}
+                    className="w-full bg-[#2d2d2d] text-white p-4 rounded-lg resize-y border border-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    spellCheck={false}
                 />
             ) : (
-                <pre className="bg-gray-100 text-gray-900 rounded-xl p-4 overflow-x-auto text-sm font-mono relative border border-gray-300 min-h-[120px]">
+                <div className="border border-gray-700 rounded-lg overflow-hidden">
                     {loading ? (
-                        <span className="text-blue-500 animate-pulse">⏳ Generating code...</span>
+                        <div className="p-4 text-blue-400 animate-pulse">⏳ Generating code...</div>
                     ) : (
-                        code || "No code generated yet."
+                        <SyntaxHighlighter language="python" style={vscDarkPlus} wrapLongLines showLineNumbers>
+                            {code || "# No code generated yet."}
+                        </SyntaxHighlighter>
                     )}
-                </pre>
+                </div>
             )}
-
-            <div className="absolute top-4 right-4 flex gap-3 items-center">
-                <button
-                    onClick={handleEditToggle}
-                    className="bg-blue-500 hover:bg-blue-400 text-white px-3 py-1 rounded-lg text-xs flex items-center gap-1 transition"
-                >
-                    <PencilIcon className="w-4 h-4" />
-                    {isEditing ? "Save" : "Edit"}
-                </button>
-
-                <button
-                    onClick={handleCopy}
-                    className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-3 py-1 rounded-lg text-xs flex items-center gap-1 transition"
-                >
-                    {copied ? (
-                        <>
-                            <CheckIcon className="w-4 h-4 text-green-500" />
-                            Copied
-                        </>
-                    ) : (
-                        <>
-                            <ClipboardIcon className="w-4 h-4" />
-                            Copy
-                        </>
-                    )}
-                </button>
-            </div>
         </div>
     );
 };

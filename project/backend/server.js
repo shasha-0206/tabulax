@@ -5,7 +5,7 @@ const cors = require("cors");
 const passport = require("./config/passport");
 const session = require("express-session");
 
-// NEWLY IMPORTED DEPENDENCIES (from second file)
+// NEWLY IMPORTED DEPENDENCIES
 const fs = require("fs");
 const path = require("path");
 const Papa = require("papaparse");
@@ -16,28 +16,34 @@ const { spawn } = require("child_process");
 
 const app = express();
 
-// Middleware from first file
+// Global variable to store transformation data
+global.transformationData = {
+  source_values: [],
+  target_values: []
+};
+
+// Middleware
 app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173", credentials: true }));
 app.use(express.json());
 app.use(session({ secret: process.env.JWT_SECRET, resave: false, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Routes from first file
+// Routes
 app.use("/auth", require("./routes/auth"));
 
-// DB connection from first file
+// DB connection
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("MongoDB connected"))
   .catch(err => console.error("MongoDB connection error:", err));
 
-// Root route from first file
+// Root route
 app.get("/", (req, res) => res.send("TabulaX Auth API running"));
 
-// Configure file upload (from second file)
+// Configure file upload
 const upload = multer({ dest: "uploads/" });
 
-// 🔹 Helper: Convert row data to column format
+// Helper: Convert row data to column format
 function convertToColumnFormat(dataArray, columns) {
     let formattedData = {};
     columns.forEach((col) => (formattedData[col] = []));
@@ -49,20 +55,18 @@ function convertToColumnFormat(dataArray, columns) {
     return formattedData;
 }
 
-// 🔹 Helper: Extract function name from code
+// Helper: Extract function name from code
 function extractFunctionName(code) {
     const match = code.match(/def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
     return match ? match[1] : null;
 }
 
-// 🔹 In-memory storage for uploaded data (temporary, session-based)
+// In-memory storage for uploaded data (temporary, session-based)
 let uploadedSourceData = null;
 let uploadedTargetData = null;
 let InputData = null;
 
-// 🔹 Routes
-
-// Handle source file upload (from second file)
+// Handle source file upload
 app.post("/upload-source", upload.single("file"), (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
@@ -105,7 +109,7 @@ app.post("/upload-source", upload.single("file"), (req, res) => {
     }
 });
 
-// Handle target file upload (from second file)
+// Handle target file upload
 app.post("/upload-target", upload.single("file"), (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
@@ -148,7 +152,7 @@ app.post("/upload-target", upload.single("file"), (req, res) => {
     }
 });
 
-// Handle input file upload (from second file)
+// Handle input file upload
 app.post("/upload-input", upload.single("file"), (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
@@ -191,7 +195,7 @@ app.post("/upload-input", upload.single("file"), (req, res) => {
     }
 });
 
-// Handle function generation based on source and target values (from second file)
+// Handle function generation based on source and target values
 app.post("/generate-function", async (req, res) => {
     try {
         const { source_values, target_values } = req.body;
@@ -201,6 +205,16 @@ app.post("/generate-function", async (req, res) => {
             return res.status(400).json({ error: "Source values and target values are required" });
         }
 
+        // Store the source and target values for later use
+        // This is important for General transformations
+        global.transformationData.source_values = source_values;
+        global.transformationData.target_values = target_values;
+
+        console.log("Stored transformation data:", {
+            sourceCount: source_values.length,
+            targetCount: target_values.length
+        });
+
         // Prepare request data for the classify API
         const requestData = {
             source_list: source_values,
@@ -208,7 +222,7 @@ app.post("/generate-function", async (req, res) => {
         };
 
         // Call the classify API to get the transformation type and generated function code
-        const response = await axios.post("http://27a8-34-142-160-6.ngrok-free.app/classify", requestData);
+        const response = await axios.post("https://93c1-35-198-217-78.ngrok-free.app/classify", requestData);
 
         // Extract the transformation type and function code from the response
         const { transformation_type, function_code } = response.data;
@@ -217,20 +231,10 @@ app.post("/generate-function", async (req, res) => {
         console.log(`Transformation Type: ${transformation_type}`);
         console.log(`Generated Function Code: \n${function_code}`);
 
-        // Send the transformation type and function code back to the client
-
-        // const test = [
-        //     "def transform(input_str):",
-        //     "   num = int(input_str)",
-        //     "   output = round((num - 32) * 5 / 9, 2)",
-        //     "   return output",
-        //   ].join("\n");
-          
-
-        
         res.json({
             pythonFunction: function_code,
-            type : transformation_type,
+            type: transformation_type,
+            isGeneral: transformation_type === "General"
         });
 
     } catch (error) {
@@ -239,105 +243,98 @@ app.post("/generate-function", async (req, res) => {
     }
 });
 
-// 🔹 Test function on one value (from second file)
-app.post("/test_function", (req, res) => {
-    try {
-        const { code, sample } = req.body;
-        if (code == null || sample == null) {
-            return res.status(400).json({ error: "Code and sample value are required" });
-        }
 
-        const functionName = extractFunctionName(code);
-        if (!functionName) return res.status(400).json({ error: "Could not extract function name" });
+app.post("/apply_transformation", async (req, res) => {
+  try {
+    const { column_name, code, transformation_type, source_values, target_values } = req.body;
 
-        const isNumerical = !isNaN(sample);
-        const sanitizedSample = isNumerical ? parseFloat(sample) : `"${String(sample)}"`;
-
-        const wrappedCode = `
-import json
-import numpy as np
-import logging
-
-# User function
-${code}
-
-# Sample input
-sample_input = ${sanitizedSample}
-
-# Function application logic
-def apply_function_to_input(func, value, is_numerical=${isNumerical ? "True" : "False"}):
-
-    try:
-        if is_numerical:
-            value = float(value)
-        result = func(value)
-        if is_numerical and np.isnan(result):
-            return "NaN"
-        return str(result)
-    except Exception as e:
-        return f"Error: {e}"
-
-func = ${functionName}
-output = apply_function_to_input(func, sample_input, is_numerical=${isNumerical ? "True" : "False"})
-print(json.dumps(output))
-        `;
-
-        const pythonProcess = spawn("python", ["-c", wrappedCode]);
-
-        let output = "";
-        let errorOutput = "";
-
-        pythonProcess.stdout.on("data", (data) => {
-            output += data.toString();
-        });
-
-        pythonProcess.stderr.on("data", (data) => {
-            errorOutput += data.toString();
-        });
-
-        pythonProcess.on("close", () => {
-            if (errorOutput) return res.status(500).json({ error: errorOutput.trim() });
-
-            try {
-                const result = JSON.parse(output.trim());
-                res.json({ result });
-            } catch (parseErr) {
-                res.status(500).json({ error: "Error parsing result output" });
-            }
-        });
-    } catch (error) {
-        console.error("Error testing function:", error);
-        res.status(500).json({ error: "Error testing function" });
+    if (!column_name || !code) {
+      return res.status(400).json({ error: "Column name and transformation code are required" });
     }
+
+    if (!InputData || !InputData.rawData) {
+      return res.status(400).json({ error: "No uploaded data available" });
+    }
+
+    // Handle GENERAL TRANSFORMATION
+    const isGeneralTransformation =
+      transformation_type === "General" ||
+      (code && code.includes("General Knowledge Transformation"));
+
+    if (isGeneralTransformation) {
+      let relationship = "Unknown";
+      if (code) {
+        const match = code.match(/Relationship:\s*(.*)/);
+        if (match && match[1]) {
+          relationship = match[1].trim();
+        }
+      }
+
+      let source_values_arr = source_values;
+      let target_values_arr = target_values;
+
+      if (!source_values_arr || !target_values_arr) {
+        if (
+          uploadedSourceData?.rawData &&
+          uploadedTargetData?.rawData
+        ) {
+          const sourceCol = Object.keys(uploadedSourceData.rawData[0])[0];
+          const targetCol = Object.keys(uploadedTargetData.rawData[0])[0];
+
+          source_values_arr = uploadedSourceData.rawData.map(r => r[sourceCol]);
+          target_values_arr = uploadedTargetData.rawData.map(r => r[targetCol]);
+
+          console.log("Using fallback source/target from uploaded data.");
+        } else {
+          return res.status(400).json({
+            error: "Source and target values are required for General transformations",
+          });
+        }
+      }
+
+      const inputColumnValues = InputData.rawData.map(row => row[column_name]);
+
+      try {
+        const response = await axios.post("https://93c1-35-198-217-78.ngrok-free.app/apply_general", {
+          source_list: source_values_arr,
+          target_list: target_values_arr,
+          test_sources: inputColumnValues,
+        });
+
+        const { transformed_values, relationship: detectedRelationship } = response.data;
+
+        const updatedRows = InputData.rawData.map((row, index) => ({
+          ...row,
+          [`${column_name}_transformed`]: transformed_values[index] || "N/A",
+        }));
+
+        return res.json({
+          updated_rows: updatedRows,
+          relationship: detectedRelationship || relationship,
+        });
+      } catch (err) {
+        console.error("General transformation error:", err.response?.data || err.message);
+        return res.status(500).json({ error: "Error applying general transformation: " + (err.response?.data?.error || err.message) });
+      }
+    }
+
+    // Handle NON-GENERAL TRANSFORMATION using Python
+    const columnData = InputData.rawData.map(row => row[column_name]);
+const sanitizedData = columnData.map(item => {
+  if (item === null || item === undefined || String(item).trim() === "") {
+    return "None";
+  }
+  const isNumeric = !isNaN(item);
+  return isNumeric ? item : `"${String(item).trim()}"`;
 });
 
-// 🔹 Apply transformation to column (from second file)
-app.post("/apply_transformation", (req, res) => {
-    try {
-      const { column_name, code } = req.body;
-      console.log(column_name)
-      if (!column_name || !code) {
-        return res.status(400).json({ error: "Column name and transformation code are required" });
-      }
-  
-      if (!InputData || !InputData.rawData) {
-        return res.status(400).json({ error: "No uploaded data available" });
-      }
-  
-      const columnData = InputData.rawData.map((row) => row[column_name]);
-      const sanitizedData = columnData.map((item) => {
-        const value = String(item).trim();
-        return value === "" ? null : `"${value}"`;
-      });
-      
-  
-      const functionName = extractFunctionName(code);
-      if (!functionName) {
-        return res.status(400).json({ error: "Could not extract function name" });
-      }
-  
-      // Python code to run for the full column
-      const wrappedCode = `
+
+    const functionName = extractFunctionName(code);
+    if (!functionName) {
+      return res.status(400).json({ error: "Could not extract function name from code" });
+    }
+
+    const wrappedCode = `
 import json
 import numpy as np
 
@@ -349,9 +346,8 @@ results = []
 for val in inputs:
     try:
         if val is None or val == "None":
-            results.append("None")  # Or use "Skipped" if you prefer
+            results.append("None")
             continue
-
         out = ${functionName}(val)
         if isinstance(out, float) and np.isnan(out):
             results.append("NaN")
@@ -363,45 +359,43 @@ for val in inputs:
 print(json.dumps(results))
 `.trim();
 
-  
-      const pythonProcess = spawn("python", ["-c", wrappedCode]);
-  
-      let output = "";
-      let errorOutput = "";
-  
-      pythonProcess.stdout.on("data", (data) => {
-        output += data.toString();
-      });
-  
-      pythonProcess.stderr.on("data", (data) => {
-        errorOutput += data.toString();
-      });
-  
-      pythonProcess.on("close", () => {
-        if (errorOutput && !errorOutput.includes("'NoneType' object has no attribute 'split'")) {
-            return res.status(500).json({ error: errorOutput.trim() });
-          }
-          
-  
-        try {
-          const transformedValues = JSON.parse(output.trim());
-          const updatedRows = InputData.rawData.map((row, index) => ({
-            ...row,
-            [`${column_name}_transformed`]: transformedValues[index],
-          }));
-  
-          console.table(updatedRows.slice(0, 5)); // debug preview
-          res.json({ updated_rows: updatedRows });
-        } catch (err) {
-          res.status(500).json({ error: "Error parsing transformation output" });
-        }
-      });
-    } catch (error) {
-      console.error("Error applying transformation:", error);
-      res.status(500).json({ error: "Error applying transformation" });
-    }
-  });
-  
+    const pythonProcess = spawn("python", ["-c", wrappedCode]);
+
+    let output = "";
+    let errorOutput = "";
+
+    pythonProcess.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    pythonProcess.stderr.on("data", (data) => {
+      errorOutput += data.toString();
+    });
+
+    pythonProcess.on("close", () => {
+      if (errorOutput && !errorOutput.includes("'NoneType' object has no attribute")) {
+        return res.status(500).json({ error: errorOutput.trim() });
+      }
+
+      try {
+        const transformedValues = JSON.parse(output.trim());
+        const updatedRows = InputData.rawData.map((row, index) => ({
+          ...row,
+          [`${column_name}_transformed`]: transformedValues[index],
+        }));
+
+        console.table(updatedRows.slice(0, 5));
+        res.json({ updated_rows: updatedRows });
+      } catch (err) {
+        res.status(500).json({ error: "Error parsing transformation output" });
+      }
+    });
+
+  } catch (error) {
+    console.error("Error applying transformation:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 
 // 🔹 Start Server

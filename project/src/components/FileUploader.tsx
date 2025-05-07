@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 type FileType = "source" | "target" | "input";
 type SamplesMap = { [key: string]: string[] };
@@ -10,12 +10,11 @@ interface FileUploaderProps {
 }
 
 const FileUploader: React.FC<FileUploaderProps> = ({ type, setColumns, setSamples }) => {
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = event.target.files?.[0];
-    if (!uploadedFile) return;
+  const [isDragging, setIsDragging] = useState(false);
 
+  const handleFile = async (file: File) => {
     const formData = new FormData();
-    formData.append("file", uploadedFile);
+    formData.append("file", file);
     formData.append("fileType", type);
 
     try {
@@ -33,17 +32,50 @@ const FileUploader: React.FC<FileUploaderProps> = ({ type, setColumns, setSample
     }
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadedFile = event.target.files?.[0];
+    if (uploadedFile) handleFile(uploadedFile);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+
+    const droppedFile = event.dataTransfer.files?.[0];
+    if (droppedFile) handleFile(droppedFile);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  };
+
   return (
-    <div>
+    <div className="my-4">
       <label className="block text-sm font-medium text-gray-700 mb-1">
         Upload {type.charAt(0).toUpperCase() + type.slice(1)} File
       </label>
-      <input
-        type="file"
-        accept=".csv,.xlsx"
-        onChange={handleFileUpload}
-        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:rounded-md file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-      />
+
+      <div
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        onDragEnter={() => setIsDragging(true)}
+        onDragLeave={() => setIsDragging(false)}
+        className={`relative w-full border-2 ${
+          isDragging ? "border-blue-500 bg-blue-50" : "border-dashed border-gray-300"
+        } rounded-md p-6 text-center transition-colors duration-300`}
+      >
+        <p className="text-gray-600 text-sm mb-2">
+          Drag & drop a CSV/XLSX file here or click to browse
+        </p>
+
+        <input
+          type="file"
+          accept=".csv,.xlsx"
+          onChange={handleFileUpload}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        />
+      </div>
     </div>
   );
 };

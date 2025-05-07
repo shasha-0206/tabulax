@@ -2,18 +2,18 @@ import { useState } from "react";
 import axios from "axios";
 
 interface Props {
-  code: string;                // Python function code
-  sampleInput: string;        // Sample input to test on
+  code: string;
 }
 
-const TestFunctionBox = ({ code, sampleInput }: Props) => {
+const TestFunctionBox = ({ code }: Props) => {
+  const [userInput, setUserInput] = useState("");
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleTestFunction = async () => {
-    if (!code || !sampleInput) {
-      setError("Both function and sample input are required");
+    if (!code || userInput.trim() === "") {
+      setError("Please enter input and ensure code is available.");
       return;
     }
 
@@ -26,7 +26,7 @@ const TestFunctionBox = ({ code, sampleInput }: Props) => {
         `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/test_function`,
         {
           code,
-          sample: sampleInput,
+          sample: userInput,
         }
       );
 
@@ -40,26 +40,38 @@ const TestFunctionBox = ({ code, sampleInput }: Props) => {
   };
 
   return (
-    <div className="border p-4 rounded-lg shadow-md bg-white space-y-4">
-      <h3 className="text-lg font-bold">Test Function</h3>
-      <p className="text-sm text-gray-600">Sample Input: {sampleInput}</p>
-      <button
-        onClick={handleTestFunction}
-        disabled={loading}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-      >
-        {loading ? "Testing..." : "Run Test"}
-      </button>
+    <div className="bg-black text-green-200 font-mono rounded-xl p-4 shadow-lg space-y-4 mt-6 min-h-[220px]">
+      <h3 className="text-sm text-green-400">🧪 Python Function Tester Console</h3>
+
+      <div className="flex items-center space-x-2">
+        <span className="text-green-500">&gt;</span>
+        <input
+          type="text"
+          value={userInput}
+          onChange={(e) => setUserInput(e.target.value)}
+          placeholder="Enter input to test"
+          className="bg-black text-green-200 placeholder-green-500 border-b border-green-600 focus:outline-none w-full"
+        />
+        <button
+          onClick={handleTestFunction}
+          disabled={loading}
+          className="bg-green-600 hover:bg-green-500 text-black font-bold py-1 px-3 rounded text-sm"
+        >
+          {loading ? "Running..." : "Run"}
+        </button>
+      </div>
 
       {result && (
-        <div className="mt-4 p-2 bg-green-100 rounded">
-          <strong>Result:</strong> {result}
+        <div className="text-green-300 pt-2">
+          <p><span className="text-green-500">$</span> Output:</p>
+          <pre className="whitespace-pre-wrap">{result}</pre>
         </div>
       )}
 
       {error && (
-        <div className="mt-4 p-2 bg-red-100 text-red-800 rounded">
-          <strong>Error:</strong> {error}
+        <div className="text-red-400 pt-2">
+          <p><span className="text-red-500">!</span> Error:</p>
+          <pre className="whitespace-pre-wrap">{error}</pre>
         </div>
       )}
     </div>

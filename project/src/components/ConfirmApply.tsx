@@ -3,13 +3,14 @@ import React, { useState } from "react";
 interface ConfirmApplyProps {
     column: string;
     code: string;
+    transformationType : string;
 }
 
 interface Row {
     [key: string]: any;
 }
 
-const ConfirmApply: React.FC<ConfirmApplyProps> = ({ column, code }) => {
+const ConfirmApply: React.FC<ConfirmApplyProps> = ({ column, code, transformationType }) => {
     const [updatedRows, setUpdatedRows] = useState<Row[] | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +18,11 @@ const ConfirmApply: React.FC<ConfirmApplyProps> = ({ column, code }) => {
         try {
             const response = await fetch("http://localhost:5000/apply_transformation", {
                 method: "POST",
-                body: JSON.stringify({ column_name: column, code }),
+                body: JSON.stringify({
+                    column_name: column,
+                    code,
+                    transformation_type: transformationType
+                  }),
                 headers: { "Content-Type": "application/json" },
             });
 
